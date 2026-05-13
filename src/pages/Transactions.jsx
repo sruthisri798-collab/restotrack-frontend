@@ -5,7 +5,7 @@ import {
   isMissing, isMatched, isOrphan, isReview, isRefund, isWaived, getUrgency
 } from '../components/transactions/workflowConfig'
 
-const API = 'http://127.0.0.1:8000'
+const API = 'https://restaurant-accountability-system.onrender.com'
 
 export default function Transactions() {
   const [insights,     setInsights]     = useState([])

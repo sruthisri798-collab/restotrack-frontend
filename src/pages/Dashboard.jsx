@@ -4,7 +4,7 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip
 } from "recharts";
 
-const API = "http://127.0.0.1:8000";
+const API = "https://restaurant-accountability-system.onrender.com";
 const COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#e24b4a", "#06b6d4", "#a855f7", "#84cc16", "#ec4899"];
 
 // ── Use category from DB — no hardcoded keyword lists ──────

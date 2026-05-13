@@ -4,7 +4,7 @@ import {
   isOrphan, isReview, isRefund, isWaived, timeAgo, getCategoryIcon
 } from './workflowConfig'
 
-const API = 'http://127.0.0.1:8000'
+const API = 'https://restaurant-accountability-system.onrender.com'
 
 function ContextBanner({ item }) {
   const ctx = getContextMessage(item)

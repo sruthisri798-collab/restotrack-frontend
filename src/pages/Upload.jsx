@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const API = "http://127.0.0.1:8000";
+const API = "https://restaurant-accountability-system.onrender.com";
 
 function UploadBox({ title, subtitle, endpoint, allowCamera }) {
   const [loading, setLoading] = useState(false);

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import WorkflowDrawer from "../components/WorkflowDrawer";
 
-const API = 'http://127.0.0.1:8000'
+const API = 'https://restaurant-accountability-system.onrender.com'
 
 export default function Alerts() {
 
