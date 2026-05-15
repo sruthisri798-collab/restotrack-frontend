@@ -1,13 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState } from "react"
 import {
   PieChart, Pie, Cell, ResponsiveContainer,
   LineChart, Line, XAxis, YAxis, Tooltip
-} from "recharts";
+} from "recharts"
 
-const API = "https://restaurant-accountability-system.onrender.com";
-const COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#e24b4a", "#06b6d4", "#a855f7", "#84cc16", "#ec4899"];
+const API = "https://restaurant-accountability-system.onrender.com"
+const COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#e24b4a", "#06b6d4", "#a855f7", "#84cc16", "#ec4899"]
 
-// ── Use category from DB — no hardcoded keyword lists ──────
 function getCategoryData(transactions) {
   const map = {}
   transactions.filter(t => t.amount > 0).forEach(t => {
@@ -17,8 +16,7 @@ function getCategoryData(transactions) {
   const total = Object.values(map).reduce((s, v) => s + v, 0)
   return Object.entries(map)
     .map(([name, value]) => ({
-      name,
-      value: parseFloat(value.toFixed(2)),
+      name, value: parseFloat(value.toFixed(2)),
       percent: total > 0 ? ((value / total) * 100).toFixed(0) : 0
     }))
     .sort((a, b) => b.value - a.value)
@@ -33,17 +31,13 @@ function getTrendData(transactions) {
   })
   return Object.entries(map)
     .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([date, amount]) => ({
-      date: date.slice(5),
-      amount: parseFloat(amount.toFixed(2))
-    }))
+    .map(([date, amount]) => ({ date: date.slice(5), amount: parseFloat(amount.toFixed(2)) }))
 }
 
 function getAvg(transactions) {
   const charges = transactions.filter(t => t.amount > 0)
   if (!charges.length) return "0.00"
-  const total = charges.reduce((s, t) => s + (t.amount || 0), 0)
-  return (total / charges.length).toFixed(2)
+  return (charges.reduce((s, t) => s + t.amount, 0) / charges.length).toFixed(2)
 }
 
 const STATUS_STYLE = {
@@ -55,8 +49,6 @@ const STATUS_STYLE = {
   pending_receipt:           { label: "Missing",   bg: "#fee2e2", color: "#991b1b" },
   overdue_receipt:           { label: "Overdue",   bg: "#fecaca", color: "#991b1b" },
   waived_exception:          { label: "Waived",    bg: "#f3f4f6", color: "#374151" },
-  orphan_receipt:            { label: "Orphan",    bg: "#ede9fe", color: "#5b21b6" },
-  pending_transaction_sync:  { label: "Orphan",    bg: "#ede9fe", color: "#5b21b6" },
 }
 
 function StatusBadge({ status }) {
@@ -68,17 +60,27 @@ function StatusBadge({ status }) {
   )
 }
 
-function KPICard({ icon, label, value, delta, deltaUp, bg }) {
+function KPICard({ icon, label, value, delta, deltaUp, bg, mobile }) {
   return (
-    <div style={{ background: "white", borderRadius: 8, padding: "12px 14px", border: "0.5px solid #e5e7eb", display: "flex", alignItems: "center", gap: 10 }}>
-      <div style={{ width: 36, height: 36, borderRadius: 8, background: bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>
+    <div style={{
+      background: "white", borderRadius: mobile ? 12 : 8,
+      padding: mobile ? "14px" : "12px 14px",
+      border: "0.5px solid #e5e7eb",
+      display: "flex", alignItems: "center", gap: 10
+    }}>
+      <div style={{
+        width: mobile ? 44 : 36, height: mobile ? 44 : 36,
+        borderRadius: mobile ? 10 : 8, background: bg,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: mobile ? 20 : 16, flexShrink: 0
+      }}>
         {icon}
       </div>
       <div>
-        <div style={{ fontSize: 10, color: "#6b7280", marginBottom: 2 }}>{label}</div>
-        <div style={{ fontSize: 18, fontWeight: 500, color: "#111827", lineHeight: 1 }}>{value}</div>
+        <div style={{ fontSize: mobile ? 12 : 10, color: "#6b7280", marginBottom: 2 }}>{label}</div>
+        <div style={{ fontSize: mobile ? 22 : 18, fontWeight: 600, color: "#111827", lineHeight: 1 }}>{value}</div>
         {delta && (
-          <div style={{ fontSize: 10, marginTop: 2, color: deltaUp ? "#059669" : "#e24b4a" }}>
+          <div style={{ fontSize: mobile ? 11 : 10, marginTop: 2, color: deltaUp ? "#059669" : "#e24b4a" }}>
             {deltaUp ? "↑" : "↓"} {delta}
           </div>
         )}
@@ -87,7 +89,7 @@ function KPICard({ icon, label, value, delta, deltaUp, bg }) {
   )
 }
 
-export default function Dashboard({ setPage }) {
+export default function Dashboard({ setPage, isMobile }) {
   const [transactions, setTransactions] = useState([])
   const [insights,     setInsights]     = useState([])
   const [loading,      setLoading]      = useState(true)
@@ -119,41 +121,17 @@ export default function Dashboard({ setPage }) {
     setSyncing(false)
   }
 
-  // ── Correct match rate calculation ────────────────────────
-  // matched = transactions with matched status
-  // charges = all non-refund transactions (excludes credits)
-  // excludes orphans (receipts with no transaction)
-  const matched   = insights.filter(d =>
-    d.status === 'matched_auto' || d.status === 'matched_with_confirmation'
-  ).length
-
-  const charges   = insights.filter(d =>
-    d.type === 'missing_receipt' || d.status === 'matched_auto' || d.status === 'matched_with_confirmation' || d.status === 'awaiting_clarification' || d.status === 'needs_manual_review' || d.status === 'waived_exception'
-  ).filter(d => (d.amount || 0) >= 0).length
-
-  const matchRate = charges > 0 ? Math.round((matched / charges) * 100) : 0
-
-  const needsReview = insights.filter(d =>
-    d.status === 'needs_manual_review' ||
-    d.status === 'awaiting_clarification' ||
-    d.status === 'escalated'
-  ).length
-
-  const totalSpend   = transactions.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0)
+  const matched     = insights.filter(d => d.status === 'matched_auto' || d.status === 'matched_with_confirmation').length
+  const charges     = insights.filter(d => ['missing_receipt','matched_auto','matched_with_confirmation','awaiting_clarification','needs_manual_review','waived_exception'].includes(d.status || d.type) && (d.amount || 0) >= 0).length
+  const matchRate   = charges > 0 ? Math.round((matched / charges) * 100) : 0
+  const needsReview = insights.filter(d => ['needs_manual_review','awaiting_clarification','escalated'].includes(d.status)).length
+  const totalSpend  = transactions.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0)
   const categoryData = getCategoryData(transactions)
   const allTrendData = getTrendData(transactions)
+  const trendData    = trendRange === "7d" ? allTrendData.slice(-7) : trendRange === "30d" ? allTrendData.slice(-30) : allTrendData
 
-  const trendData = trendRange === "7d"
-    ? allTrendData.slice(-7)
-    : trendRange === "30d"
-    ? allTrendData.slice(-30)
-    : allTrendData
-
-  // Build insight lookup by transaction id for recent table
   const insightByTxnId = {}
-  insights.forEach(i => {
-    if (i.transaction?.id) insightByTxnId[i.transaction.id] = i
-  })
+  insights.forEach(i => { if (i.transaction?.id) insightByTxnId[i.transaction.id] = i })
 
   const now      = new Date()
   const hour     = now.getHours()
@@ -165,86 +143,187 @@ export default function Dashboard({ setPage }) {
     </div>
   )
 
+  // ── MOBILE LAYOUT ─────────────────────────────────────────
+  if (isMobile) {
+    return (
+      <div style={{ height: "100%", overflowY: "auto", background: "#f3f4f6", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+
+        {/* Mobile top bar */}
+        <div style={{ background: "white", padding: "14px 16px", borderBottom: "0.5px solid #e8e6e1" }}>
+          <div style={{ fontSize: 16, fontWeight: 600, color: "#111827" }}>{greeting}, Pradeep 👋</div>
+          <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+            {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <button onClick={handleSync} disabled={syncing} style={{
+              flex: 1, background: syncing ? "#6b7280" : "#111827", color: "white",
+              border: "none", borderRadius: 8, padding: "10px", fontSize: 12, fontWeight: 500, cursor: "pointer"
+            }}>
+              {syncing ? "Syncing..." : "↻ Sync & Match"}
+            </button>
+            <button onClick={() => setPage("upload")} style={{
+              flex: 1, background: "#e24b4a", color: "white",
+              border: "none", borderRadius: 8, padding: "10px", fontSize: 12, fontWeight: 500, cursor: "pointer"
+            }}>
+              + Upload Receipt
+            </button>
+          </div>
+        </div>
+
+        <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+
+          {/* KPI cards — 2x2 grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <KPICard mobile icon="💰" label="Total spend" bg="#fef3c7"
+              value={`$${(totalSpend/1000).toFixed(1)}k`}
+              delta="this period" deltaUp={true} />
+            <KPICard mobile icon="💳" label="Transactions" bg="#dbeafe"
+              value={transactions.length}
+              delta={`avg $${getAvg(transactions)}`} deltaUp={true} />
+            <KPICard mobile icon="✅" label="Match rate" bg="#d1fae5"
+              value={`${matchRate}%`}
+              delta={`${matched} matched`} deltaUp={matchRate > 50} />
+            <KPICard mobile icon="⚠️" label="Needs review" bg="#fee2e2"
+              value={needsReview}
+              delta={needsReview > 0 ? "action required" : "all clear"}
+              deltaUp={needsReview === 0} />
+          </div>
+
+          {/* Category breakdown */}
+          <div style={{ background: "white", borderRadius: 12, padding: "16px", border: "0.5px solid #e5e7eb" }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#111827", marginBottom: 12 }}>Category breakdown</div>
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <ResponsiveContainer width={140} height={140}>
+                <PieChart>
+                  <Pie data={categoryData} dataKey="value" innerRadius={42} outerRadius={68} paddingAngle={2}>
+                    {categoryData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 7 }}>
+                {categoryData.slice(0, 5).map((c, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS[i % COLORS.length] }} />
+                      <span style={{ fontSize: 11, color: "#374151" }}>{c.name}</span>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 500, color: "#111827" }}>{c.percent}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Spending trend */}
+          <div style={{ background: "white", borderRadius: 12, padding: "16px", border: "0.5px solid #e5e7eb" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>Spending trend</span>
+              <div style={{ display: "flex", gap: 4 }}>
+                {["7d", "30d", "all"].map(r => (
+                  <button key={r} onClick={() => setTrendRange(r)} style={{
+                    fontSize: 10, padding: "3px 8px", borderRadius: 4, border: "none", cursor: "pointer",
+                    background: trendRange === r ? "#111827" : "#f3f4f6",
+                    color: trendRange === r ? "white" : "#6b7280"
+                  }}>{r === "all" ? "All" : r.toUpperCase()}</button>
+                ))}
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={130}>
+              <LineChart data={trendData}>
+                <XAxis dataKey="date" tick={{ fontSize: 8, fill: "#9ca3af" }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 8, fill: "#9ca3af" }} tickLine={false} axisLine={false} tickFormatter={v => `$${v}`} />
+                <Tooltip formatter={v => [`$${v.toFixed(2)}`, "Spend"]} />
+                <Line type="monotone" dataKey="amount" stroke="#6366f1" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Recent transactions — cards on mobile */}
+          <div style={{ background: "white", borderRadius: 12, padding: "16px", border: "0.5px solid #e5e7eb" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>Recent transactions</span>
+              <button onClick={() => setPage("transactions")} style={{ fontSize: 11, color: "#6366f1", background: "none", border: "none", cursor: "pointer" }}>
+                View all →
+              </button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {transactions.slice(0, 6).map((t, i) => {
+                const insight = insightByTxnId[t.id]
+                const refund  = t.amount < 0
+                return (
+                  <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: "#f8f8f7", borderRadius: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: "#111827" }}>{t.merchant}</div>
+                      <div style={{ fontSize: 11, color: "#6b7280", marginTop: 1 }}>{t.category} · {t.transaction_date?.slice(5,10)}</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: refund ? "#059669" : "#111827" }}>
+                        {refund ? "-" : ""}${Math.abs(t.amount || 0).toFixed(2)}
+                      </div>
+                      <div style={{ marginTop: 3 }}>
+                        <StatusBadge status={insight?.status || (refund ? "matched_auto" : "pending_receipt")} />
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── DESKTOP LAYOUT ────────────────────────────────────────
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-
-      {/* TOP BAR */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", background: "white", borderBottom: "0.5px solid #e5e7eb", flexShrink: 0 }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "#111827" }}>
-            {greeting}, Pradeep 👋
-          </h2>
+          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "#111827" }}>{greeting}, Pradeep 👋</h2>
           <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6b7280" }}>
             {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })} · Financial summary
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={handleSync} disabled={syncing} style={{
-            background: syncing ? "#6b7280" : "#111827", color: "white",
-            border: "none", borderRadius: 6, padding: "7px 14px",
-            fontSize: 11, fontWeight: 500, cursor: "pointer"
-          }}>
+          <button onClick={handleSync} disabled={syncing} style={{ background: syncing ? "#6b7280" : "#111827", color: "white", border: "none", borderRadius: 6, padding: "7px 14px", fontSize: 11, fontWeight: 500, cursor: "pointer" }}>
             {syncing ? "Syncing..." : "↻ Sync & Match"}
           </button>
-          <button onClick={() => setPage("upload")} style={{
-            background: "#e24b4a", color: "white", border: "none",
-            borderRadius: 6, padding: "7px 14px", fontSize: 11, fontWeight: 500, cursor: "pointer"
-          }}>
+          <button onClick={() => setPage("upload")} style={{ background: "#e24b4a", color: "white", border: "none", borderRadius: 6, padding: "7px 14px", fontSize: 11, fontWeight: 500, cursor: "pointer" }}>
             + Upload Receipt
           </button>
         </div>
       </div>
 
-      {/* SCROLLABLE CONTENT */}
       <div style={{ flex: 1, padding: "14px 18px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-
-        {/* KPI ROW */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-          <KPICard
-            icon="💰" label="Total spend" bg="#fef3c7"
+          <KPICard icon="💰" label="Total spend" bg="#fef3c7"
             value={`$${totalSpend.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-            delta="this period" deltaUp={true}
-          />
-          <KPICard
-            icon="💳" label="Transactions" bg="#dbeafe"
-            value={transactions.length}
-            delta={`avg $${getAvg(transactions)}`} deltaUp={true}
-          />
-          <KPICard
-            icon="✅" label="Match rate" bg="#d1fae5"
-            value={`${matchRate}%`}
-            delta={`${matched} of ${charges} matched`} deltaUp={matchRate > 50}
-          />
-          <KPICard
-            icon="⚠️" label="Needs review" bg="#fee2e2"
-            value={needsReview}
-            delta={needsReview > 0 ? "action required" : "all clear"}
-            deltaUp={needsReview === 0}
-          />
+            delta="this period" deltaUp={true} />
+          <KPICard icon="💳" label="Transactions" bg="#dbeafe"
+            value={transactions.length} delta={`avg $${getAvg(transactions)}`} deltaUp={true} />
+          <KPICard icon="✅" label="Match rate" bg="#d1fae5"
+            value={`${matchRate}%`} delta={`${matched} of ${charges} matched`} deltaUp={matchRate > 50} />
+          <KPICard icon="⚠️" label="Needs review" bg="#fee2e2"
+            value={needsReview} delta={needsReview > 0 ? "action required" : "all clear"} deltaUp={needsReview === 0} />
         </div>
 
-        {/* CHARTS ROW */}
         <div style={{ display: "grid", gridTemplateColumns: "400px 1fr", gap: 10 }}>
-
-          {/* DONUT */}
           <div style={{ background: "white", borderRadius: 8, padding: "14px 16px", border: "0.5px solid #e5e7eb" }}>
             <div style={{ fontSize: 11, fontWeight: 500, color: "#111827", marginBottom: 12 }}>Category breakdown</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <ResponsiveContainer width={190} height={190}>
                 <PieChart>
                   <Pie data={categoryData} dataKey="value" innerRadius={58} outerRadius={90} paddingAngle={2}>
-                    {categoryData.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
+                    {categoryData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                   </Pie>
-                  <Tooltip formatter={(v) => `$${v.toFixed(2)}`} />
+                  <Tooltip formatter={v => `$${v.toFixed(2)}`} />
                 </PieChart>
               </ResponsiveContainer>
               <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 9 }}>
                 {categoryData.map((c, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS[i % COLORS.length], flexShrink: 0 }} />
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: COLORS[i % COLORS.length] }} />
                       <span style={{ fontSize: 11, color: "#374151" }}>{c.name}</span>
                     </div>
                     <div style={{ textAlign: "right" }}>
@@ -256,18 +335,12 @@ export default function Dashboard({ setPage }) {
               </div>
             </div>
           </div>
-
-          {/* TREND */}
           <div style={{ background: "white", borderRadius: 8, padding: "14px 16px", border: "0.5px solid #e5e7eb" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <span style={{ fontSize: 11, fontWeight: 500, color: "#111827" }}>Spending trend</span>
               <div style={{ display: "flex", gap: 4 }}>
                 {["7d", "30d", "all"].map(r => (
-                  <button key={r} onClick={() => setTrendRange(r)} style={{
-                    fontSize: 10, padding: "2px 8px", borderRadius: 4, border: "none", cursor: "pointer",
-                    background: trendRange === r ? "#111827" : "#f3f4f6",
-                    color: trendRange === r ? "white" : "#6b7280"
-                  }}>
+                  <button key={r} onClick={() => setTrendRange(r)} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 4, border: "none", cursor: "pointer", background: trendRange === r ? "#111827" : "#f3f4f6", color: trendRange === r ? "white" : "#6b7280" }}>
                     {r === "all" ? "All" : r.toUpperCase()}
                   </button>
                 ))}
@@ -277,28 +350,23 @@ export default function Dashboard({ setPage }) {
               <LineChart data={trendData}>
                 <XAxis dataKey="date" tick={{ fontSize: 9, fill: "#9ca3af" }} tickLine={false} axisLine={false} />
                 <YAxis tick={{ fontSize: 9, fill: "#9ca3af" }} tickLine={false} axisLine={false} tickFormatter={v => `$${v}`} />
-                <Tooltip formatter={(v) => [`$${v.toFixed(2)}`, "Spend"]} />
+                <Tooltip formatter={v => [`$${v.toFixed(2)}`, "Spend"]} />
                 <Line type="monotone" dataKey="amount" stroke="#6366f1" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* RECENT TRANSACTIONS TABLE */}
         <div style={{ background: "white", borderRadius: 8, padding: "14px 16px", border: "0.5px solid #e5e7eb" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <span style={{ fontSize: 11, fontWeight: 500, color: "#111827" }}>Recent transactions</span>
-            <button onClick={() => setPage("transactions")} style={{ fontSize: 10, color: "#6366f1", background: "none", border: "none", cursor: "pointer" }}>
-              View all →
-            </button>
+            <button onClick={() => setPage("transactions")} style={{ fontSize: 10, color: "#6366f1", background: "none", border: "none", cursor: "pointer" }}>View all →</button>
           </div>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr>
                 {["Description", "Category", "Amount", "Status", "Date"].map(h => (
-                  <th key={h} style={{ fontSize: 10, color: "#6b7280", fontWeight: 500, textAlign: "left", padding: "0 0 8px", borderBottom: "0.5px solid #e5e7eb", textTransform: "uppercase", letterSpacing: ".04em" }}>
-                    {h}
-                  </th>
+                  <th key={h} style={{ fontSize: 10, color: "#6b7280", fontWeight: 500, textAlign: "left", padding: "0 0 8px", borderBottom: "0.5px solid #e5e7eb", textTransform: "uppercase", letterSpacing: ".04em" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -316,16 +384,13 @@ export default function Dashboard({ setPage }) {
                     <td style={{ padding: "8px 0", borderBottom: "0.5px solid #f3f4f6" }}>
                       <StatusBadge status={insight?.status || (refund ? "matched_auto" : "pending_receipt")} />
                     </td>
-                    <td style={{ fontSize: 11, color: "#6b7280", padding: "8px 0", borderBottom: "0.5px solid #f3f4f6" }}>
-                      {t.transaction_date?.slice(5, 10)}
-                    </td>
+                    <td style={{ fontSize: 11, color: "#6b7280", padding: "8px 0", borderBottom: "0.5px solid #f3f4f6" }}>{t.transaction_date?.slice(5, 10)}</td>
                   </tr>
                 )
               })}
             </tbody>
           </table>
         </div>
-
       </div>
     </div>
   )
