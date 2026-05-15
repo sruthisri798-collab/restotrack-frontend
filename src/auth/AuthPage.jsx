@@ -1,15 +1,77 @@
 import { useState } from 'react'
 import { useAuth } from './AuthContext'
 
+function PasswordStrength({ password }) {
+  const checks = [
+    { label: '8+ characters',        met: password.length >= 8 },
+    { label: 'Uppercase letter',      met: /[A-Z]/.test(password) },
+    { label: 'Lowercase letter',      met: /[a-z]/.test(password) },
+    { label: 'Number',                met: /[0-9]/.test(password) },
+    { label: 'Special character',     met: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) },
+  ]
+
+  const metCount = checks.filter(c => c.met).length
+  const strength = metCount <= 1 ? 'Weak' : metCount <= 3 ? 'Fair' : metCount === 4 ? 'Good' : 'Strong'
+  const strengthColor = metCount <= 1 ? '#dc2626' : metCount <= 3 ? '#f59e0b' : metCount === 4 ? '#3b82f6' : '#059669'
+
+  if (!password) return null
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      {/* Strength bar */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
+        {[1,2,3,4,5].map(i => (
+          <div key={i} style={{
+            flex: 1, height: 4, borderRadius: 99,
+            background: i <= metCount ? strengthColor : '#e5e7eb',
+            transition: 'background 0.2s',
+          }} />
+        ))}
+      </div>
+      <div style={{ fontSize: 11, color: strengthColor, fontWeight: 500, marginBottom: 6 }}>
+        {strength}
+      </div>
+      {/* Requirements checklist */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {checks.map((c, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 11, color: c.met ? '#059669' : '#9ca3af' }}>
+              {c.met ? '✓' : '○'}
+            </span>
+            <span style={{ fontSize: 11, color: c.met ? '#059669' : '#9ca3af' }}>
+              {c.label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function AuthPage() {
   const { signIn, signUp } = useAuth()
   const [mode,     setMode]     = useState('login')
   const [name,     setName]     = useState('')
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
+  const [showPass, setShowPass] = useState(false)
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState(null)
   const [success,  setSuccess]  = useState(null)
+
+  function validatePassword(pwd) {
+    if (pwd.length < 8)
+      return 'Password must be at least 8 characters'
+    if (!/[A-Z]/.test(pwd))
+      return 'Password must contain at least one uppercase letter'
+    if (!/[a-z]/.test(pwd))
+      return 'Password must contain at least one lowercase letter'
+    if (!/[0-9]/.test(pwd))
+      return 'Password must contain at least one number'
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(pwd))
+      return 'Password must contain at least one special character (!@#$...)'
+    return null
+  }
 
   async function handleSubmit() {
     setError(null)
@@ -19,9 +81,17 @@ export default function AuthPage() {
       setError('Please fill in all fields')
       return
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters')
-      return
+
+    if (mode === 'signup') {
+      if (!name.trim()) {
+        setError('Please enter your name')
+        return
+      }
+      const pwdError = validatePassword(password)
+      if (pwdError) {
+        setError(pwdError)
+        return
+      }
     }
 
     setLoading(true)
@@ -38,22 +108,17 @@ export default function AuthPage() {
         }
       }
     } else {
-      if (!name.trim()) {
-        setError('Please enter your name')
-        setLoading(false)
-        return
-      }
       const { error } = await signUp(email, password, name)
       if (error) {
         setError(error.message)
       } else {
-        setSuccess('Account created! We sent a confirmation email. Please check your inbox and confirm before logging in.')
+        setSuccess('Account created! We sent a confirmation email. Please check your inbox and click the link before logging in.')
         setName('')
         setPassword('')
         setTimeout(() => {
           setSuccess(null)
           setMode('login')
-        }, 4000)
+        }, 5000)
       }
     }
 
@@ -89,7 +154,7 @@ export default function AuthPage() {
         <div style={{ background: 'white', borderRadius: 16, padding: 28, boxShadow: '0 4px 24px rgba(0,0,0,0.08)', border: '0.5px solid #e8e6e1' }}>
 
           {error && (
-            <div style={{ background: '#fee2e2', border: '0.5px solid #fecaca', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: '#991b1b', marginBottom: 16 }}>
+            <div style={{ background: '#fee2e2', border: '0.5px solid #fecaca', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: '#991b1b', marginBottom: 16, lineHeight: 1.5 }}>
               ❌ {error}
             </div>
           )}
@@ -100,6 +165,7 @@ export default function AuthPage() {
             </div>
           )}
 
+          {/* Name field — signup only */}
           {mode === 'signup' && (
             <div style={{ marginBottom: 14 }}>
               <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>Full name</label>
@@ -113,6 +179,7 @@ export default function AuthPage() {
             </div>
           )}
 
+          {/* Email */}
           <div style={{ marginBottom: 14 }}>
             <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>Email address</label>
             <input
@@ -125,17 +192,31 @@ export default function AuthPage() {
             />
           </div>
 
-          <div style={{ marginBottom: 20 }}>
+          {/* Password */}
+          <div style={{ marginBottom: mode === 'signup' ? 8 : 20 }}>
             <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 5 }}>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Min 6 characters"
-              style={{ width: '100%', border: '1px solid #e8e6e1', borderRadius: 8, padding: '10px 12px', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
-              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPass ? 'text' : 'password'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder={mode === 'signup' ? 'Min 8 chars, upper, lower, number, special' : 'Enter your password'}
+                style={{ width: '100%', border: '1px solid #e8e6e1', borderRadius: 8, padding: '10px 40px 10px 12px', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+              />
+              <button
+                onClick={() => setShowPass(!showPass)}
+                style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#9ca3af' }}
+              >
+                {showPass ? '🙈' : '👁️'}
+              </button>
+            </div>
+
+            {/* Password strength — signup only */}
+            {mode === 'signup' && <PasswordStrength password={password} />}
           </div>
+
+          {mode === 'signup' && <div style={{ marginBottom: 12 }} />}
 
           <button
             onClick={handleSubmit}

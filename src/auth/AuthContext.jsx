@@ -52,7 +52,7 @@ export function AuthProvider({ children }) {
       password,
       options: {
         data: { full_name: name },
-        emailRedirectTo: 'https://restotrack-frontend.vercel.app'
+        emailRedirectTo: 'https://restotrack-frontend.vercel.app/?confirmed=true'
       }
     })
     return { data, error }

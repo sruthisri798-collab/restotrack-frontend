@@ -4,7 +4,7 @@ import Upload from './pages/Upload'
 import Transactions from './pages/Transactions'
 import AskAI from './pages/AskAI'
 import AuthPage from './auth/AuthPage'
-import { AuthProvider, useAuth } from './auth/AuthContext'
+import { AuthProvider, useAuth, supabase } from './auth/AuthContext'
 import './App.css'
 
 function useIsMobile() {
@@ -29,7 +29,26 @@ function AppContent() {
   const isMobile = useIsMobile()
   const { user, loading, signOut } = useAuth()
 
-  // Show nothing while checking auth
+  // Handle email confirmation redirect
+  // When user clicks confirmation link they land here with a session
+  // We sign them out so they must log in manually
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const hashParams = new URLSearchParams(window.location.hash.replace('#', '?'))
+
+    const isConfirmation = (
+      params.get('confirmed') === 'true' ||
+      hashParams.get('type') === 'signup' ||
+      window.location.hash.includes('type=signup')
+    )
+
+    if (isConfirmation) {
+      // Sign out and clear URL
+      supabase.auth.signOut()
+      window.history.replaceState({}, '', '/')
+    }
+  }, [])
+
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
       <div style={{ textAlign: 'center' }}>
@@ -41,7 +60,6 @@ function AppContent() {
     </div>
   )
 
-  // Show login if not authenticated
   if (!user) return <AuthPage />
 
   const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'
@@ -139,7 +157,7 @@ function AppContent() {
           ))}
         </div>
 
-        {/* User section at bottom */}
+        {/* User section */}
         <div style={{ padding: '12px 16px', borderTop: '0.5px solid rgba(255,255,255,0.07)' }}>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {user.email}
