@@ -3,7 +3,7 @@ import { useAuth } from './AuthContext'
 
 export default function AuthPage() {
   const { signIn, signUp } = useAuth()
-  const [mode,     setMode]     = useState('login') // 'login' | 'signup'
+  const [mode,     setMode]     = useState('login')
   const [name,     setName]     = useState('')
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
@@ -28,7 +28,15 @@ export default function AuthPage() {
 
     if (mode === 'login') {
       const { error } = await signIn(email, password)
-      if (error) setError(error.message)
+      if (error) {
+        if (error.message.includes('Email not confirmed')) {
+          setError('Please confirm your email before logging in. Check your inbox.')
+        } else if (error.message.includes('Invalid login')) {
+          setError('Incorrect email or password. Please try again.')
+        } else {
+          setError(error.message)
+        }
+      }
     } else {
       if (!name.trim()) {
         setError('Please enter your name')
@@ -39,10 +47,13 @@ export default function AuthPage() {
       if (error) {
         setError(error.message)
       } else {
-        setSuccess('Account created! You can now log in.')
-        setMode('login')
+        setSuccess('Account created! We sent a confirmation email. Please check your inbox and confirm before logging in.')
         setName('')
         setPassword('')
+        setTimeout(() => {
+          setSuccess(null)
+          setMode('login')
+        }, 4000)
       }
     }
 
@@ -84,7 +95,7 @@ export default function AuthPage() {
           )}
 
           {success && (
-            <div style={{ background: '#d1fae5', border: '0.5px solid #bbf7d0', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: '#065f46', marginBottom: 16 }}>
+            <div style={{ background: '#d1fae5', border: '0.5px solid #bbf7d0', borderRadius: 8, padding: '12px', fontSize: 13, color: '#065f46', marginBottom: 16, lineHeight: 1.5 }}>
               ✅ {success}
             </div>
           )}
@@ -95,7 +106,7 @@ export default function AuthPage() {
               <input
                 value={name}
                 onChange={e => setName(e.target.value)}
-                placeholder="Pradeep Chinthapandu"
+                placeholder="Your full name"
                 style={{ width: '100%', border: '1px solid #e8e6e1', borderRadius: 8, padding: '10px 12px', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
                 onKeyDown={e => e.key === 'Enter' && handleSubmit()}
               />
@@ -141,9 +152,17 @@ export default function AuthPage() {
 
           <div style={{ textAlign: 'center', marginTop: 16, fontSize: 13, color: '#6b7280' }}>
             {mode === 'login' ? (
-              <>Don't have an account? <span onClick={() => { setMode('signup'); setError(null) }} style={{ color: '#e24b4a', cursor: 'pointer', fontWeight: 500 }}>Sign up</span></>
+              <>Don't have an account?{' '}
+                <span onClick={() => { setMode('signup'); setError(null); setSuccess(null) }} style={{ color: '#e24b4a', cursor: 'pointer', fontWeight: 500 }}>
+                  Sign up
+                </span>
+              </>
             ) : (
-              <>Already have an account? <span onClick={() => { setMode('login'); setError(null) }} style={{ color: '#e24b4a', cursor: 'pointer', fontWeight: 500 }}>Sign in</span></>
+              <>Already have an account?{' '}
+                <span onClick={() => { setMode('login'); setError(null); setSuccess(null) }} style={{ color: '#e24b4a', cursor: 'pointer', fontWeight: 500 }}>
+                  Sign in
+                </span>
+              </>
             )}
           </div>
         </div>

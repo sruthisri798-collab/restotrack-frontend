@@ -89,7 +89,7 @@ function KPICard({ icon, label, value, delta, deltaUp, bg, mobile }) {
   )
 }
 
-export default function Dashboard({ setPage, isMobile }) {
+export default function Dashboard({ setPage, isMobile, userName }) {
   const [transactions, setTransactions] = useState([])
   const [insights,     setInsights]     = useState([])
   const [loading,      setLoading]      = useState(true)
@@ -150,7 +150,7 @@ export default function Dashboard({ setPage, isMobile }) {
 
         {/* Mobile top bar */}
         <div style={{ background: "white", padding: "14px 16px", borderBottom: "0.5px solid #e8e6e1" }}>
-          <div style={{ fontSize: 16, fontWeight: 600, color: "#111827" }}>{greeting}, Pradeep 👋</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: "#111827" }}>{greeting}, {userName || 'there'} 👋</div>
           <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
             {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
           </div>
@@ -279,7 +279,7 @@ export default function Dashboard({ setPage, isMobile }) {
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", background: "white", borderBottom: "0.5px solid #e5e7eb", flexShrink: 0 }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "#111827" }}>{greeting}, Pradeep 👋</h2>
+          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "#111827" }}>{greeting}, {userName || 'there'} 👋</h2>
           <p style={{ margin: "2px 0 0", fontSize: 11, color: "#6b7280" }}>
             {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })} · Financial summary
           </p>
