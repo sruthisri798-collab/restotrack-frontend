@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl  = import.meta.env.VITE_SUPABASE_URL
-const supabaseKey  = import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
@@ -20,7 +20,21 @@ export function AuthProvider({ children }) {
     })
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user?.email_confirmed_at) {
+        // If this is coming from email confirmation link
+        // check if it was just confirmed (within last 10 seconds)
+        const confirmedAt = new Date(session.user.email_confirmed_at).getTime()
+        const now = Date.now()
+        const justConfirmed = (now - confirmedAt) < 10000
+
+        if (justConfirmed) {
+          // Sign them out so they have to log in manually
+          supabase.auth.signOut()
+          setUser(null)
+          return
+        }
+      }
       setUser(session?.user ?? null)
     })
 
@@ -36,7 +50,10 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: name } }
+      options: {
+        data: { full_name: name },
+        emailRedirectTo: 'https://restotrack-frontend.vercel.app'
+      }
     })
     return { data, error }
   }
