@@ -48,10 +48,12 @@ export default function App() {
           {pages[page]}
         </div>
 
-        {/* Bottom tab bar */}
+        {/* Bottom tab bar — prominent and clear */}
         <div style={{
-          display: 'flex', background: 'white',
-          borderTop: '0.5px solid #e8e6e1',
+          display: 'flex',
+          background: 'white',
+          borderTop: '2px solid #e8e6e1',
+          boxShadow: '0 -4px 16px rgba(0,0,0,0.08)',
           paddingBottom: 'env(safe-area-inset-bottom)',
           flexShrink: 0,
         }}>
@@ -60,15 +62,23 @@ export default function App() {
               key={item.key}
               onClick={() => setPage(item.key)}
               style={{
-                flex: 1, display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center',
-                padding: '8px 0', cursor: 'pointer',
-                color: page === item.key ? '#e24b4a' : '#9ca3af',
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '10px 0 8px',
+                cursor: 'pointer',
+                color: page === item.key ? '#e24b4a' : '#6b7280',
+                background: page === item.key ? '#fff5f5' : 'white',
                 borderTop: page === item.key ? '2px solid #e24b4a' : '2px solid transparent',
+                marginTop: -2,
               }}
             >
-              <span style={{ fontSize: 18, marginBottom: 2 }}>{item.icon}</span>
-              <span style={{ fontSize: 9, fontWeight: page === item.key ? 600 : 400 }}>{item.label}</span>
+              <span style={{ fontSize: 22, marginBottom: 3 }}>{item.icon}</span>
+              <span style={{ fontSize: 10, fontWeight: page === item.key ? 700 : 400 }}>
+                {item.label}
+              </span>
             </div>
           ))}
         </div>
